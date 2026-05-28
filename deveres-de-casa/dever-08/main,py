@@ -1,0 +1,209 @@
+"""
+Implementação do algoritmo de Bellman-Ford para grafo direcionado com pesos.
+
+Exibe tabela de iterações (distância atual + predecessor) e detecta
+ciclos negativos.
+"""
+
+import math
+
+
+# ── Constantes ──────────────────────────────────────────────────────────────
+
+INFINITO: float = math.inf
+VERTICE_ORIGEM = 0
+NUM_ITERACOES = 3
+
+
+# ── Estrutura do grafo ──────────────────────────────────────────────────────
+
+ARESTAS = [
+    (0, 1, 5),
+    (1, 2, 1),
+    (1, 3, 2),
+    (2, 4, 1),
+    (4, 3, -1),
+]
+
+VERTICES = list(range(5))
+
+
+# ── Algoritmo ────────────────────────────────────────────────────────────────
+
+def inicializar_distancias(
+    vertices: list[int], origem: int
+) -> tuple[dict, dict]:
+    """
+    Inicializa os dicionários de distâncias e predecessores.
+
+    Args:
+        vertices: Lista de vértices do grafo.
+        origem: Vértice de partida do algoritmo.
+
+    Returns:
+        Tupla (distancias, predecessores) com os valores iniciais.
+    """
+    distancias = {v: INFINITO for v in vertices}
+    predecessores = {v: None for v in vertices}
+    distancias[origem] = 0
+    return distancias, predecessores
+
+
+def relaxar_arestas(
+    arestas: list[tuple],
+    distancias: dict,
+    predecessores: dict,
+) -> dict:
+    """
+    Executa uma iteração de relaxamento sobre todas as arestas.
+
+    Args:
+        arestas: Lista de tuplas (origem, destino, peso).
+        distancias: Dicionário de distâncias atuais.
+        predecessores: Dicionário de predecessores atuais.
+
+    Returns:
+        Dicionário com o estado da iteração:
+        {vértice: (distância, predecessor)}.
+    """
+    for u, v, peso in arestas:
+        if distancias[u] != INFINITO and distancias[u] + peso < distancias[v]:
+            distancias[v] = distancias[u] + peso
+            predecessores[v] = u
+
+    return {v: (distancias[v], predecessores[v]) for v in distancias}
+
+
+def detectar_ciclo_negativo(arestas: list[tuple], distancias: dict) -> bool:
+    """
+    Verifica se existe ciclo negativo no grafo após o relaxamento principal.
+
+    Args:
+        arestas: Lista de tuplas (origem, destino, peso).
+        distancias: Distâncias finais após (|V| - 1) iterações.
+
+    Returns:
+        True se existir ciclo negativo, False caso contrário.
+    """
+    for u, v, peso in arestas:
+        if distancias[u] != INFINITO and distancias[u] + peso < distancias[v]:
+            return True
+    return False
+
+
+def bellman_ford(
+    vertices: list[int],
+    arestas: list[tuple],
+    origem: int,
+    num_iteracoes: int,
+) -> tuple[list[dict], bool]:
+    """
+    Executa o algoritmo de Bellman-Ford e retorna o histórico de iterações.
+
+    Args:
+        vertices: Lista de vértices do grafo.
+        arestas: Lista de arestas (origem, destino, peso).
+        origem: Vértice inicial.
+        num_iteracoes: Número de iterações a registrar na tabela.
+
+    Returns:
+        Tupla (historico, tem_ciclo_negativo) onde:
+            - historico é lista de dicts por iteração
+              {vértice: (dist, pred)};
+            - tem_ciclo_negativo é bool.
+    """
+    distancias, predecessores = inicializar_distancias(vertices, origem)
+    historico = []
+
+    for _ in range(num_iteracoes):
+        estado = relaxar_arestas(arestas, distancias, predecessores)
+        historico.append({v: (d, p) for v, (d, p) in estado.items()})
+
+    tem_ciclo = detectar_ciclo_negativo(arestas, distancias)
+    return historico, tem_ciclo
+
+
+# ── Exibição ────────────────────────────────────────────────────────────────
+
+def formatar_distancia(valor: float) -> str:
+    """
+    Formata a distância para exibição.
+
+    Args:
+        valor: Valor numérico da distância.
+
+    Returns:
+        String formatada ('∞' para infinito, inteiro caso contrário).
+    """
+    return "∞" if valor == INFINITO else str(int(valor))
+
+
+def formatar_predecessor(pred) -> str:
+    """
+    Formata o predecessor para exibição.
+
+    Args:
+        pred: Vértice predecessor ou None.
+
+    Returns:
+        String '-' para None, ou o vértice como string.
+    """
+    return "-" if pred is None else str(pred)
+
+
+def imprimir_tabela(historico: list[dict], vertices: list[int]) -> None:
+    """
+    Imprime a tabela de iterações no terminal.
+
+    Args:
+        historico: Lista de estados por iteração.
+        vertices: Lista de vértices do grafo.
+    """
+    col = 10
+    cabecalho = f"{'Iteração':<12}" + "".join(
+        f"{'Vértice ' + str(v):^{col}}" for v in vertices
+    )
+    print(cabecalho)
+    print("-" * len(cabecalho))
+
+    for i, estado in enumerate(historico, start=1):
+        linha_dist = f"{'Iter ' + str(i) + ' dist':<12}"
+        linha_pred = f"{'Iter ' + str(i) + ' pred':<12}"
+        for v in vertices:
+            dist, pred = estado[v]
+            linha_dist += f"{formatar_distancia(dist):^{col}}"
+            linha_pred += f"{formatar_predecessor(pred):^{col}}"
+        print(linha_dist)
+        print(linha_pred)
+        print()
+
+
+def imprimir_resultado(tem_ciclo: bool) -> None:
+    """
+    Imprime o resultado da verificação de ciclo negativo.
+
+    Args:
+        tem_ciclo: True se ciclo negativo foi detectado.
+    """
+    if tem_ciclo:
+        print("⚠  Ciclo negativo detectado no grafo!")
+    else:
+        print("✓  Nenhum ciclo negativo detectado.")
+
+
+# ── Ponto de entrada ────────────────────────────────────────────────────────
+
+def main() -> None:
+    """Ponto de entrada: executa Bellman-Ford e exibe os resultados."""
+    historico, tem_ciclo = bellman_ford(
+        vertices=VERTICES,
+        arestas=ARESTAS,
+        origem=VERTICE_ORIGEM,
+        num_iteracoes=NUM_ITERACOES,
+    )
+    imprimir_tabela(historico, VERTICES)
+    imprimir_resultado(tem_ciclo)
+
+
+if __name__ == "__main__":
+    main()
